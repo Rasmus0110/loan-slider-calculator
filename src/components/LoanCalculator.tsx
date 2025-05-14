@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import LoanSlider from "./LoanSlider";
 import { prefetchLoanData, getMonthlyCost } from '@/services/supabaseService';
+import { debounce } from '@/lib/debounce';
 
 const LoanCalculator = () => {
   // Default values
@@ -17,6 +18,33 @@ const LoanCalculator = () => {
     return value.toLocaleString();
   };
 
+  // Fetch monthly cost with debounce
+  const fetchMonthlyCost = useCallback(async (amount: number, years: number) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const cost = await getMonthlyCost(amount, years);
+      if (cost !== null) {
+        setMonthlyCost(cost);
+      } else {
+        setError("Cost data not available for the selected values.");
+      }
+    } catch (err) {
+      setError("Error fetching monthly cost. Please try again.");
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Create debounced version of fetch function - 300ms is typically a good balance
+  const debouncedFetchMonthlyCost = useCallback(
+    debounce((amount: number, years: number) => {
+      fetchMonthlyCost(amount, years);
+    }, 300),
+    [fetchMonthlyCost]
+  );
+
   // Handle loan amount changes
   const handleLoanAmountChange = (values: number[]) => {
     setLoanAmount(values[0]);
@@ -29,26 +57,15 @@ const LoanCalculator = () => {
 
   // Update monthly cost when inputs change
   useEffect(() => {
-    const fetchMonthlyCost = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const cost = await getMonthlyCost(loanAmount, loanYear);
-        setMonthlyCost(cost);
-      } catch (err) {
-        setError("Error fetching monthly cost. Please try again.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMonthlyCost();
-  }, [loanAmount, loanYear]);
+    debouncedFetchMonthlyCost(loanAmount, loanYear);
+  }, [loanAmount, loanYear, debouncedFetchMonthlyCost]);
 
   // Prefetch data on component mount
   useEffect(() => {
-    prefetchLoanData();
+    prefetchLoanData().then(() => {
+      // After prefetching, immediately load the initial value
+      fetchMonthlyCost(loanAmount, loanYear);
+    });
   }, []);
 
   return (
