@@ -73,7 +73,7 @@ const LoanCalculator = () => {
 
       <LoanSlider
         min={1}
-        max={10}
+        max={15}
         step={1}
         value={loanYear}
         onChange={handleLoanYearChange}
