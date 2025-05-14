@@ -13,12 +13,12 @@ const LoanCalculator = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Format currency values
+  // Format currency values without decimals
   const formatCurrency = (value: number): string => {
-    return value.toLocaleString();
+    return Math.round(value).toLocaleString();
   };
 
-  // Fetch monthly cost with debounce
+  // Fetch monthly cost - direct version for immediate updates
   const fetchMonthlyCost = useCallback(async (amount: number, years: number) => {
     try {
       setIsLoading(true);
@@ -37,28 +37,19 @@ const LoanCalculator = () => {
     }
   }, []);
 
-  // Create debounced version of fetch function - 300ms is typically a good balance
-  const debouncedFetchMonthlyCost = useCallback(
-    debounce((amount: number, years: number) => {
-      fetchMonthlyCost(amount, years);
-    }, 300),
-    [fetchMonthlyCost]
-  );
-
   // Handle loan amount changes
   const handleLoanAmountChange = (values: number[]) => {
     setLoanAmount(values[0]);
+    // Update immediately on slide
+    fetchMonthlyCost(values[0], loanYear);
   };
 
   // Handle loan year changes
   const handleLoanYearChange = (values: number[]) => {
     setLoanYear(values[0]);
+    // Update immediately on slide
+    fetchMonthlyCost(loanAmount, values[0]);
   };
-
-  // Update monthly cost when inputs change
-  useEffect(() => {
-    debouncedFetchMonthlyCost(loanAmount, loanYear);
-  }, [loanAmount, loanYear, debouncedFetchMonthlyCost]);
 
   // Prefetch data on component mount
   useEffect(() => {
